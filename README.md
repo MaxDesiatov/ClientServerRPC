@@ -1,2 +1,2 @@
 # ClientServerRPC
-Client/server RPC relying on Swift distributed actors (WIP)
+Client/server RPC relying with Swift distributed actors (WIP)
