@@ -9,10 +9,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-20.04
+    container: swiftlang/swift:nightly-focal
     steps:
       - name: Checkout repo content
         uses: actions/checkout@v2
       - name: Run swift build
-        uses: docker://swiftlang/swift:nightly-focal
         run: |
           swift build
