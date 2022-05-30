@@ -1,3 +1,4 @@
+import ClientServerRPC
 import Vapor
 
 func routes(_ app: Application) throws {

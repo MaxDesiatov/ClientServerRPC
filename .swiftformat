@@ -8,5 +8,7 @@
 --maxwidth 120
 --wraparguments before-first
 --funcattributes prev-line
+--typeattributes prev-line
+--varattributes prev-line
 --disable andOperator
 --swiftversion 5.6

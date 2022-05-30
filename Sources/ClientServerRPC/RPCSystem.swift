@@ -9,6 +9,7 @@ import Distributed
 @preconcurrency
 import Foundation
 import NIOCore
+import NIOFoundationCompat
 
 extension RemoteCallArgument: Codable {
   public init(from decoder: Decoder) throws {
@@ -18,9 +19,9 @@ extension RemoteCallArgument: Codable {
   public func encode(to encoder: Encoder) throws {}
 }
 
-final class RPCSystem: DistributedActorSystem {
-  typealias ActorID = String
-  typealias SerializationRequirement = Codable
+public final class RPCSystem: DistributedActorSystem {
+  public typealias ActorID = String
+  public typealias SerializationRequirement = Codable
 
   enum SerializationError: Error {
     case unableToDecodeDataLength
@@ -32,7 +33,11 @@ final class RPCSystem: DistributedActorSystem {
   let decoder = JSONDecoder()
   let underlyingTransport = Transport()
 
-  func actorReady<Act>(_: Act) where Act: DistributedActor, ActorID == Act.ID {}
+  public init() {}
+
+  public func actorReady<Act>(_: Act) where Act: DistributedActor, ActorID == Act.ID {
+    print("actorReady")
+  }
 
   func remoteCall<Act, Err, Res>(
     on actor: Act,
@@ -80,27 +85,29 @@ final class RPCSystem: DistributedActorSystem {
     try await underlyingTransport.send(envelope, to: actor.id)
   }
 
-  func resolve<Act>(id: ActorID, as actorType: Act.Type) throws -> Act?
+  public func resolve<Act>(id: ActorID, as actorType: Act.Type) throws -> Act?
     where Act: DistributedActor, ActorID == Act.ID
   {
-    nil
+    print("resolving")
+    return nil
   }
 
-  func assignID<Act>(_ actorType: Act.Type) -> ActorID
+  public func assignID<Act>(_ actorType: Act.Type) -> ActorID
     where Act: DistributedActor, ActorID == Act.ID
   {
-    ""
+    print("assigning")
+    return String(reflecting: actorType)
   }
 
-  func resignID(_ id: ActorID) {}
+  public func resignID(_ id: ActorID) {}
 
-  func makeInvocationEncoder() -> InvocationEncoder {
+  public func makeInvocationEncoder() -> InvocationEncoder {
     .init(system: self)
   }
 }
 
-extension RPCSystem {
-  func summonType(byName name: String) throws -> Any.Type {
+public extension RPCSystem {
+  internal func summonType(byName name: String) throws -> Any.Type {
     guard let type = _typeByName(name) else {
       throw SerializationError.unableToSummonType
     }
@@ -108,13 +115,15 @@ extension RPCSystem {
     return type
   }
 
-  final class Transport: Sendable {
+  internal final class Transport: Sendable {
     @discardableResult
-    func send(_ envelope: InvocationEncoder.Envelope, to actorID: ActorID) async throws -> Data {}
+    func send(_ envelope: InvocationEncoder.Envelope, to actorID: ActorID) async throws -> Data {
+      Data()
+    }
   }
 
   struct InvocationEncoder: DistributedTargetInvocationEncoder {
-    typealias SerializationRequirement = RPCSystem.SerializationRequirement
+    public typealias SerializationRequirement = RPCSystem.SerializationRequirement
 
     struct Envelope {
       var arguments = [Data]()
@@ -130,7 +139,7 @@ extension RPCSystem {
 
     /// The arguments must be encoded order-preserving, and once `decodeGenericSubstitutions`
     /// is called, the substitutions must be returned in the same order in which they were recorded.
-    mutating func recordGenericSubstitution<T>(_ type: T.Type) throws {
+    public mutating func recordGenericSubstitution<T>(_ type: T.Type) throws {
       // NOTE: we are showcasing a pretty simple implementation here...
       //       advanced systems could use mangled type names or registered type IDs.
       envelope.genericSubstitutions.append(String(reflecting: T.self))
@@ -142,7 +151,7 @@ extension RPCSystem {
       envelope.arguments.append(argData)
     }
 
-    mutating func recordErrorType<E: Error>(_ errorType: E.Type) throws {
+    public mutating func recordErrorType<E: Error>(_ errorType: E.Type) throws {
       envelope.errorType = String(reflecting: errorType)
     }
 
@@ -152,18 +161,18 @@ extension RPCSystem {
 
     /// Invoked when all the `record...` calls have been completed and the `DistributedTargetInvocation`
     /// will be passed off to the `remoteCall` to perform the remote call using this invocation representation.
-    mutating func doneRecording() throws {
+    public mutating func doneRecording() throws {
       // our impl does not need to do anything here
     }
   }
 
   struct InvocationDecoder: DistributedTargetInvocationDecoder {
-    typealias SerializationRequirement = RPCSystem.SerializationRequirement
+    public typealias SerializationRequirement = RPCSystem.SerializationRequirement
 
     let system: RPCSystem
     var bytes: ByteBuffer
 
-    mutating func decodeGenericSubstitutions() throws -> [Any.Type] {
+    public mutating func decodeGenericSubstitutions() throws -> [Any.Type] {
       guard let subCount: Int = bytes.readInteger() else {
         throw SerializationError.unableToDecodeDataLength
       }
@@ -196,7 +205,7 @@ extension RPCSystem {
       return try system.decoder.decode(Argument.self, from: nextData)
     }
 
-    mutating func decodeErrorType() throws -> Any.Type? {
+    public mutating func decodeErrorType() throws -> Any.Type? {
       // read the length of the type
       guard let length: Int = bytes.readInteger()
       else {
@@ -213,7 +222,7 @@ extension RPCSystem {
       return try system.summonType(byName: typeName)
     }
 
-    mutating func decodeReturnType() throws -> Any.Type? {
+    public mutating func decodeReturnType() throws -> Any.Type? {
       // read the length of the type
       guard let length: Int = bytes.readInteger()
       else {
@@ -232,11 +241,11 @@ extension RPCSystem {
   }
 
   struct ResultHandler: DistributedTargetInvocationResultHandler {
-    typealias SerializationRequirement = RPCSystem.SerializationRequirement
+    public typealias SerializationRequirement = RPCSystem.SerializationRequirement
 
-    func onReturnVoid() async throws {}
-    func onThrow<Err>(error: Err) async throws where Err: Error {}
+    public func onReturnVoid() async throws {}
+    public func onThrow<Err>(error: Err) async throws where Err: Error {}
 
-    mutating func onReturn<Success: SerializationRequirement>(value: Success) async throws {}
+    func onReturn<Success: SerializationRequirement>(value: Success) async throws {}
   }
 }
