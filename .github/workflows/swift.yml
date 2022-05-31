@@ -7,7 +7,7 @@ on:
     branches: "*"
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-20.04
     container: swiftlang/swift:nightly-focal
     steps:
